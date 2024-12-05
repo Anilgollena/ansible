@@ -1,0 +1,100 @@
+- hosts: localhost
+  vars:
+    aws_access_key: ""
+    aws_secret_key: ""
+    region: "us-east-1"
+    vpc_id: "vpc-04b359f221c582db9"
+    pubsubnet_cidr_block: "11.0.1.0/24"
+    pvtsubnet_cidr_block: "11.0.2.0/24"
+    instance_ids:
+      - "i-0dc16e0dd9b13d2bc"
+      - "i-0721e0c7422735fe5"
+      - "i-03a4b8e7ab6b87639"
+      - "i-0d1e93a95ef8df736"
+      # Replace with your instance IDs
+    security_group_name: "anil_sg"
+    security_group_id: "sg-0f680b75c1b4d9f73"  # Replace with your Security Group ID
+    pubroute_table_name: "anil_pub_rt"
+    pvtroute_table_name: "anil_pvt_rt"
+    igw_name: "anail_igw"
+    vpc_name: "anil_vpc"
+  tasks:
+    # Terminate EC2 Instances
+    - name: Terminate EC2 Instance
+      ec2_instance:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        instance_ids: "{{ instance_ids }}"
+        state: absent
+
+    # Delete Security Group
+    - name: Delete Security Group
+      ec2_group:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        name: "{{ security_group_name }}"
+        group_id: "{{ security_group_id }}"
+        state: absent
+
+    # Delete Public Subnet
+    - name: Delete Public Subnet
+      ec2_vpc_subnet:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        cidr: "{{ pubsubnet_cidr_block }}"
+        state: absent
+
+    # Delete Private Subnet
+    - name: Delete Private Subnet
+      ec2_vpc_subnet:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        cidr: "{{ pvtsubnet_cidr_block }}"
+        state: absent
+
+    # Delete Public Route Table
+    - name: Delete Public Route Table
+      ec2_vpc_route_table:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        tags:
+          Name: "{{ pubroute_table_name }}"
+        state: absent
+
+    # Delete Private Route Table
+    - name: Delete Private Route Table
+      ec2_vpc_route_table:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        vpc_id: "{{ vpc_id }}"
+        tags:
+          Name: "{{ pvtroute_table_name }}"
+        state: absent
+
+    # Detach and Delete Internet Gateway
+    - name: Detach and Delete Internet Gateway
+      ec2_vpc_igw:
+        vpc_id: "{{ vpc_id }}"
+        state: absent
+        region: "{{ region }}"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+
+    # Delete VPC
+    - name: Delete VPC by name
+      ec2_vpc_net:
+        cidr_block: "11.0.0.0/16"  # Replace with your VPC CIDR block
+        name: "{{ vpc_name }}"
+        state: absent
+        region: "{{ region }}"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
