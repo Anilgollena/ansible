@@ -1,0 +1,132 @@
+- hosts: localhost
+  tasks:
+    - name: Create a VPC
+      ec2_vpc_net:
+        aws_access_key: ""
+        aws_secret_key: ""
+        region: "us-east-1"
+        cidr_block: "10.0.0.0/16"
+        name: "anil-vpc"
+        state: present
+      register: vpc_result
+
+    - name: Display VPC result
+      debug:
+        var: vpc_result
+    - name: Create an Internet Gateway
+      ec2_vpc_igw:
+        aws_access_key: ""
+        aws_secret_key: ""
+        region: "us-east-1"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        state: present
+        tags:
+          Name: "MyInternetGateway"
+      register: igw_result
+
+    - name: Display Internet Gateway Result
+      debug:
+        var: igw_result
+    - name: Create a Public Subnet
+      ec2_vpc_subnet:
+        aws_access_key: ""
+        aws_secret_key: ""
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: us-east-1
+        az: us-east-1a
+        state: present
+        cidr: 10.0.0.0/20
+        map_public: yes
+        resource_tags:
+          Name: "anilpub"
+      register: pubsubnet_result
+
+    # Create a Private Subnet
+    - name: Create a Private Subnet
+      ec2_vpc_subnet:
+        aws_access_key: ""
+        aws_secret_key: ""
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: us-east-1
+        az: us-east-1b
+        state: present
+        cidr: 10.0.16.0/20
+        map_public: no
+        resource_tags:
+          Name: "anilpvt"
+      register: pvtsubnet_result
+      # Create a Public Route Table
+    - ec2_vpc_route_table:
+        aws_access_key: ""
+        aws_secret_key: ""
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: us-east-1
+        state: present
+        tags:
+          Name: "anil-pub-rt"
+        subnets: [ "{{ pubsubnet_result.subnet.id }}" ]
+        #create routes
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ igw_result.gateway_id }}"
+      register: public_route_table
+    # Create a Private Route Table
+    - ec2_vpc_route_table:
+        aws_access_key: ""
+        aws_secret_key: ""
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: us-east-1
+        state: absent
+        tags:
+          Name: "anil-pvt-rt"
+        subnets:
+          - "{{ pvtsubnet_result.subnet.id }}"
+      register: private_route_table
+    # Create a Security Group
+    - ec2_group:
+        aws_access_key: ""
+        aws_secret_key: ""
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: us-east-1
+        state: present
+        name: anil-sg
+        description: allow
+        tags:
+          Name: "anil-sg"
+        rules:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+            rule_desc: allow all traffic
+      register: security_group_results
+        #Launch EC2 Instance
+    - ec2:
+        image: ami-0166fe664262f664c
+        instance_type: t2.micro
+        region: us-east-1
+        wait: yes
+        count: 1
+        state: present
+        vpc_subnet_id: "{{ pubsubnet_result.subnet.id }}"
+        assign_public_ip: yes
+        group_id: "{{ security_group_results.group_id }}"
+        aws_access_key: ""
+        aws_secret_key: ""
+        user_data: "{{ lookup('file', 'data.sh') }}"
+        instance_tags:
+          Name: newinstance1
+             #Launch EC2 Instance
+    - ec2:
+        image: ami-0166fe664262f664c
+        instance_type: t2.micro
+        region: us-east-1
+        wait: yes
+        count: 1
+        state: present
+        vpc_subnet_id: "{{ pubsubnet_result.subnet.id }}"
+        assign_public_ip: yes
+        group_id: "{{ security_group_results.group_id }}"
+        aws_access_key: ""
+        aws_secret_key: ""
+        user_data: "{{ lookup('file', 'data1.sh') }}"
+        instance_tags:
+          Name: newinstance2
