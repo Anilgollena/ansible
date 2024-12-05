@@ -1,0 +1,168 @@
+- hosts: localhost
+  become: yes
+  gather_facts: false
+
+  vars:
+    aws_access_key: ""
+    aws_secret_key: ""
+    title: "Demo"
+    vpc_name: anil_vpc
+    igw_name: anail_igw
+    pubsubnet_name: anil_pub
+    pvtsubnet_name: anil_pvt_1
+    pubroute_table_name: anil_pub_rt
+    pvtroute_table_name: anil_pvt_rt
+    security_group_name: anil_sg
+    vpc_cidr_block: '11.0.0.0/16'
+    pubsubnet_cidr_block: '11.0.1.0/24'
+    pvtsubnet_cidr_block: '11.0.2.0/24'
+    destination_cidr_block: '0.0.0.0/0'
+    port22_cidr_block: '0.0.0.0/0'
+    region: "us-east-1"
+    pubzone: "us-east-1a"
+    prizone: "us-east-1b"
+    image_id: "ami-0166fe664262f664c"
+    type: "t2.micro"
+    instance_name1: anil_instance1
+    instance_name2: anil_instance2
+
+  tasks:
+    # Create a VPC
+    - name: Create a VPC
+      ec2_vpc_net:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        cidr_block: "{{ vpc_cidr_block }}"
+        name: "{{ vpc_name }}"
+        dns_support: yes
+        dns_hostnames: yes
+        tenancy: default
+        state: present
+      register: vpc_result
+
+    # Create an Internet Gateway
+    - name: Create an Internet Gateway
+      ec2_vpc_igw:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        state: present
+        tags:
+          Name: "{{ igw_name }}"
+      register: igw_result
+
+    # Create a Public Subnet
+    - name: Create a Public Subnet
+      ec2_vpc_subnet:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        az: "{{ pubzone }}"
+        cidr: "{{ pubsubnet_cidr_block }}"
+        map_public: yes
+        state: present
+        resource_tags:
+          Name: "{{ pubsubnet_name }}"
+      register: pubsubnet_result
+
+    # Create a Private Subnet
+    - name: Create a Private Subnet
+      ec2_vpc_subnet:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        az: "{{ prizone }}"
+        cidr: "{{ pvtsubnet_cidr_block }}"
+        map_public: no
+        state: present
+        resource_tags:
+          Name: "{{ pvtsubnet_name }}"
+      register: pvtsubnet_result
+
+    # Create a Public Route Table
+    - name: Create a Public Route Table
+      ec2_vpc_route_table:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        state: present
+        subnets:
+          - "{{ pubsubnet_result.subnet.id }}"
+        tags:
+          Name: "{{ pubroute_table_name }}"
+        routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ igw_result.gateway_id }}"
+      register: public_route_table
+
+    # Create a Private Route Table
+    - name: Create a Private Route Table
+      ec2_vpc_route_table:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        state: present
+        subnets:
+          - "{{ pvtsubnet_result.subnet.id }}"
+        tags:
+          Name: "{{ pvtroute_table_name }}"
+      register: private_route_table
+
+    # Create a Security Group
+    - name: Create a Security Group
+      ec2_group:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        vpc_id: "{{ vpc_result.vpc.id }}"
+        region: "{{ region }}"
+        state: present
+        name: "{{ security_group_name }}"
+        description: "Allow all traffic"
+        tags:
+          Name: "{{ security_group_name }}"
+        rules:
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+            rule_desc: "Allow all traffic"
+      register: security_group_results
+
+    # Launch an EC2 Instance
+    - name: Launch an EC2 Instance
+      ec2:
+        image: "{{ image_id }}"
+        instance_type: "{{ type }}"
+        region: "{{ region }}"
+        wait: yes
+        count: 1
+        state: present
+        vpc_subnet_id: "{{ pubsubnet_result.subnet.id }}"
+        assign_public_ip: yes
+        group_id: "{{ security_group_results.group_id }}"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        user_data: "{{ lookup('file', 'data.sh') }}"
+        instance_tags:
+          Name: "{{ instance_name1 }}"
+
+    - name: Launch an EC2 Instance
+      ec2:
+        image: "{{ image_id }}"
+        instance_type: "{{ type }}"
+        region: "{{ region }}"
+        wait: yes
+        count: 1
+        state: present
+        vpc_subnet_id: "{{ pubsubnet_result.subnet.id }}"
+        assign_public_ip: yes
+        group_id: "{{ security_group_results.group_id }}"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        user_data: "{{ lookup('file', 'data1.sh') }}"
+        instance_tags:
+          Name: "{{ instance_name2 }}"
