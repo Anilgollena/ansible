@@ -1,0 +1,86 @@
+- hosts: localhost
+  tasks:
+    # Terminate EC2 Instance
+    - name: Terminate EC2 Instance
+      ec2_instance:
+        aws_access_key: ""
+        aws_secret_key: ""
+        region: "us-east-1"
+        instance_ids:
+          - "i-0a2befd14ef1855cf"
+          - "i-08fe22a811b18e23d"
+          - "i-03df765bd060c19a8"
+          - "i-0549fb66c24bea7d9"  # Replace with your instance ID
+        state: absent
+
+    # Delete Security Group
+    - name: Delete Security Group
+      ec2_group:
+        aws_access_key: ""
+        aws_secret_key: ""
+        region: "us-east-1"
+        name: "anil_sg"
+        group_id: "sg-0405b0452bf756f84"
+        state: absent
+
+    # Delete Public Subnet
+    - name: Delete Public Subnet
+      ec2_vpc_subnet:
+        aws_access_key: ""
+        aws_secret_key: ""
+        region: "us-east-1"
+        vpc_id: "vpc-090927ffaf52324b6"  # Replace with your VPC ID
+        cidr: "11.0.1.0/24"
+        state: absent
+
+    # Delete Private Subnet
+    - name: Delete Private Subnet
+      ec2_vpc_subnet:
+        aws_access_key: ""
+        aws_secret_key: ""
+        region: "us-east-1"
+        vpc_id: "vpc-090927ffaf52324b6"  # Replace with your VPC ID
+        cidr: "11.0.2.0/24"
+        state: absent
+
+    # Delete Public Route Table
+    - name: Delete Public Route Table
+      ec2_vpc_route_table:
+        aws_access_key: ""
+        aws_secret_key: ""
+        region: "us-east-1"
+        vpc_id: "vpc-090927ffaf52324b6"
+        tags:
+          Name: "anil_pub_rt"
+        state: absent
+
+    # Delete Private Route Table
+    - name: Delete Private Route Table
+      ec2_vpc_route_table:
+        aws_access_key: ""
+        aws_secret_key: ""
+        region: "us-east-1"
+        vpc_id: "vpc-090927ffaf52324b6"
+        tags:
+          Name: "anil_pvt_rt"
+        state: absent
+
+    # Detach Internet Gateway
+    - name: Detach and Delete Internet Gateway
+      ec2_vpc_igw:
+        vpc_id: "vpc-090927ffaf52324b6"
+        state: absent
+        region: us-east-1
+        aws_access_key: ""
+        aws_secret_key: ""
+
+
+    # Delete VPC
+    - name: Delete VPC by name
+      ec2_vpc_net:
+        cidr_block: "11.0.0.0/16"
+        name: "anil_vpc"
+        state: absent
+        region: us-east-1
+        aws_access_key: ""
+        aws_secret_key: ""
