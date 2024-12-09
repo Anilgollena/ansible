@@ -1,0 +1,89 @@
+- hosts: localhost
+  become: yes
+  gather_facts: false
+
+  vars_files:
+    - secret.yaml
+  tasks:
+    # Terminate EC2 Instances
+    - name: Terminate EC2 Instance
+      ec2_instance:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        instance_ids:
+          - "i-0d286701c08d9eb4c"
+          - "i-0505b1447a6f931ae"
+          - "i-05c0d99fbb4873842"
+        state: absent
+
+    # Delete Security Group
+    - name: Delete Security Group
+      ec2_group:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        name: "{{ security_group_name }}"
+        group_id: "sg-0f2403102be24d566"
+        state: absent
+
+    # Delete Public Subnet
+    - name: Delete Public Subnet
+      ec2_vpc_subnet:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        vpc_id: "vpc-0b938fffe884af161"
+        cidr: "subnet-00b750d04903efc39"
+        state: absent
+
+    # Delete Private Subnet
+    - name: Delete Private Subnet
+      ec2_vpc_subnet:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        vpc_id: "vpc-0b938fffe884af161"
+        cidr: "subnet-0ad8cbd07f73d4f29"
+        state: absent
+
+    # Delete Public Route Table
+    - name: Delete Public Route Table
+      ec2_vpc_route_table:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        vpc_id: "vpc-0b938fffe884af161"
+        tags:
+          Name: "{{ pubroute_table_name }}"
+        state: absent
+
+    # Delete Private Route Table
+    - name: Delete Private Route Table
+      ec2_vpc_route_table:
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+        region: "{{ region }}"
+        vpc_id: "vpc-0b938fffe884af161"
+        tags:
+          Name: "{{ pvtroute_table_name }}"
+        state: absent
+
+    # Detach and Delete Internet Gateway
+    - name: Detach and Delete Internet Gateway
+      ec2_vpc_igw:
+        vpc_id: "vpc-0b938fffe884af161"
+        state: absent
+        region: "{{ region }}"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
+
+    # Delete VPC
+    - name: Delete VPC by name
+      ec2_vpc_net:
+        cidr_block: "11.0.0.0/16"  # Replace with your VPC CIDR block
+        name: "vpc-0b938fffe884af161"
+        state: absent
+        region: "{{ region }}"
+        aws_access_key: "{{ aws_access_key }}"
+        aws_secret_key: "{{ aws_secret_key }}"
